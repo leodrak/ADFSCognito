@@ -82,7 +82,7 @@ var DataManager = window.DataManager || {};
                    ".amazoncognito.com" +
                    "/login?response_type=token" +
                    "&client_id=" + window._config.cognito.userPoolClientId +
-                   "&redirect_uri=https://d2bmyd7zcejjeb.cloudfront.net"
+                   "&redirect_uri=" + window._config.cognito.redirect_uri
 
                    //+ location.protocol + '//' + location.host + '/' +
                    //"&scope=BookingManager/hotel";
