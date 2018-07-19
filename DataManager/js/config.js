@@ -1,11 +1,11 @@
 window._config = {
     cognito: {
-        userPoolClientId: '1huj5988e7vulp66psbpcpiuha', // e.g. 25ddkmj4v6hfsfvruhpfi7n4hv
-        region: 'us-east-1', // e.g. us-east-2
-        authDomainPrefix: 'samlfedtest' // e.g. leosaml
-        redirect_uri:'https://d2bmyd7zcejjeb.cloudfront.net' //e.g. https://d*******.cloudfront.net
+        userPoolClientId: '', // e.g. 25ddkmj4v6hfsfvruhpfi7n4hv
+        region: '', // e.g. us-east-2
+        authDomainPrefix: '' // e.g. leosaml
+        redirect_uri:'' //e.g. https://d*******.cloudfront.net
     },
     api: {
-        invokeUrl: 'https://e9wu8ufvk5.execute-api.us-east-1.amazonaws.com/Prod' // e.g. https://xxxxxxxx.execute-api.us-west-2.amazonaws.com/prod',
+        invokeUrl: '' // e.g. https://xxxxxxxx.execute-api.us-west-2.amazonaws.com/prod',
     }
 };
