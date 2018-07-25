@@ -5,7 +5,7 @@ In this post, we show how to federate identities from Active Directory to authen
 More specifically, we explain how to integrate Amazon Cognito User Pools, together with Active Directory Federation Services, to obtain JWT tokens in your web app that in turn can be used for downstream authentication. To demonstrate the end to end authentication flow we have created a simple REST API built on Amazon API Gateway. The REST API retrieves data from a DynamoDB table with the help of an AWS Lambda function. We will use those JWT tokens vended from user pools to authenticate to the REST API which is hosted on API Gateway.
 
 
-![Blog architecture](../images/ADFS.png)
+![Blog architecture](./images/ADFS.png)
 
 The details of the flow above are as follows:
 1.	The app starts the sign-up and sign-in process by directing your user to the UI hosted by AWS. A mobile app can use web view to show the pages hosted by AWS.
