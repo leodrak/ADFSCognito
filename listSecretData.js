@@ -10,7 +10,7 @@ exports.handler = (event, context, callback) => {
 
     console.log('Received event: ', event);
 
-    listSecrets(event.requestContext.authorizer.principalId).then((data) => {
+    listSecrets(event.requestContext.authorizer.claims.email).then((data) => {
         // You can use the callback function to provide a return value from your Node.js
         // Lambda functions. The first parameter is used for failed invocations. The
         // second parameter specifies the result data of the invocation.
