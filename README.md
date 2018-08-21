@@ -1,5 +1,7 @@
 # Building ADFS federation for your Web app using Amazon Cognito User Pools
 
+Detailed instructions on how to leverage this sample can be found in the [Building ADFS Federation for your Web App using Amazon Cognito User Pools](https://aws.amazon.com/blogs/mobile/building-adfs-federation-for-your-web-app-using-amazon-cognito-user-pools/) blog.
+
 In this post, we show how to federate identities from Active Directory to authenticate users into your web app by leveraging AWS services. The main AWS service that we will leverage for this purpose is Amazon Cognito user pools. With Amazon Cognito user pools, you can seamlessly add user sign-up and sign-in to your mobile and web apps using a secure and scalable user directory. In addition, you can federate users from a SAML IdP with Amazon Cognito user pools, map these users to a user directory, and get standard authentication tokens from a user pool after the user authenticates with a SAML IdP.
 
 More specifically, we explain how to integrate Amazon Cognito User Pools, together with Active Directory Federation Services, to obtain JWT tokens in your web app that in turn can be used for downstream authentication. To demonstrate the end to end authentication flow we have created a simple REST API built on Amazon API Gateway. The REST API retrieves data from a DynamoDB table with the help of an AWS Lambda function. We will use those JWT tokens vended from user pools to authenticate to the REST API which is hosted on API Gateway.
