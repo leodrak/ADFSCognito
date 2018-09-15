@@ -5,6 +5,22 @@ Parameters:
   BucketName:
     Type: String
     Description: The name for the bucket hosting your website, e.g. 'datamanager-yourname'
+  SecretsTableName:
+    Type: String
+    Default: ADFSSecretData
+    Description: The secrets table in DynamoDB, e.g. 'ADFSSecretData'
+  ListSecretDataFunctionName:
+    Type: String
+    Default: ListSecretData
+    Description: Lambda function name to list secret data in DynamoDB, e.g. 'ListSecretData'
+  DataManagerName:
+    Type: String
+    Default: DataManager
+    Description: ApiGateway data manager name, e.g. 'DataManager'
+  SecretDataPolicy:
+    Type: String
+    Default: SecretDataPolicy
+    Description: IAM policy name, e.g. 'SecretDataPolicy'
 
 Resources:
   WebsiteBucket:
@@ -61,7 +77,7 @@ Resources:
   SecretsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: ADFSSecretData
+      TableName: !Ref SecretsTableName
       AttributeDefinitions:
         -
           AttributeName: email
@@ -77,7 +93,7 @@ Resources:
   RequestSecretDataExecutionRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: SecretDataLambda
+      #RoleName: SecretDataLambda
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -92,7 +108,7 @@ Resources:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
         -
-          PolicyName: SecretDataPolicy
+          PolicyName: !Ref SecretDataPolicy
           PolicyDocument:
             Version: 2012-10-17
             Statement:
@@ -105,17 +121,22 @@ Resources:
   RequestSecretDataFunction:
      Type: AWS::Lambda::Function
      Properties:
-       FunctionName: ListSecretData
+       FunctionName: !Ref ListSecretDataFunctionName
        Runtime: nodejs6.10
        Role: !GetAtt RequestSecretDataExecutionRole.Arn
        Timeout: 5
        MemorySize: 128
+       Environment:
+        Variables:
+          TABLE_NAME: !Ref SecretsTableName
        Handler: index.handler
        Code:
          ZipFile: >
             const AWS = require('aws-sdk');
 
             const ddb = new AWS.DynamoDB.DocumentClient();
+
+            var tableName = process.env.TABLE_NAME;
 
             exports.handler = (event, context, callback) => {
                 if (!event.requestContext.authorizer) {
@@ -156,7 +177,7 @@ Resources:
                         ":u": username
                     },
                     FilterExpression: 'email = :u',
-                    TableName: 'ADFSSecretData',
+                    TableName: tableName,
                 }).promise();
             }
 
@@ -176,12 +197,12 @@ Resources:
   DataManagerApi:
     Type: AWS::ApiGateway::RestApi
     Properties:
-      Name: DataManager
+      Name: !Ref DataManagerName
       Body:
         swagger: 2.0
         info:
           version: 1.0.0
-          title: DataManager
+          title: !Ref DataManagerName
         paths:
           /secrets:
             get:
@@ -281,5 +302,5 @@ Outputs:
           - ".execute-api."
           - !Ref AWS::Region
           - ".amazonaws.com/prod"
-    Export:
-      Name: DataManagerApiUrl
+    #Export:
+    #  Name: DataManagerApiUrl
