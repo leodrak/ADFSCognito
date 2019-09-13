@@ -1,54 +1,72 @@
-AWSTemplateFormatVersion: '2010-09-09'
-Description: Creates an S3 bucket and CloudFormation configured for hosting a static website
-
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Creates an S3 bucket and CloudFormation configured for hosting a static
+  website
 Parameters:
   BucketName:
     Type: String
-    Description: The name for the bucket hosting your website, e.g. 'datamanager-yourname'
-
+    Description: 'The name for the bucket hosting your website, e.g. ''datamanager-yourname'''
 Resources:
   WebsiteBucket:
-    Type: AWS::S3::Bucket
+    Type: 'AWS::S3::Bucket'
     Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
       BucketName: !Ref BucketName
       AccessControl: PublicRead
       WebsiteConfiguration:
         IndexDocument: index.html
     DeletionPolicy: Retain
-
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 4795c4e7-f621-41f2-84c4-c19733a90081
   WebsiteBucketPolicy:
-    Type: AWS::S3::BucketPolicy
+    Type: 'AWS::S3::BucketPolicy'
     Properties:
-      Bucket: !Ref 'WebsiteBucket'
+      Bucket: !Ref WebsiteBucket
       PolicyDocument:
         Statement:
-        - Sid: PublicReadForGetBucketObjects
-          Effect: Allow
-          Principal: '*'
-          Action: s3:GetObject
-          Resource: !Join ['', ['arn:aws:s3:::', !Ref 'WebsiteBucket', /*]]
-
+          - Sid: PublicReadForGetBucketObjects
+            Effect: Allow
+            Principal: '*'
+            Action: 's3:GetObject'
+            Resource: !Join 
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref WebsiteBucket
+                - /*
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 9e824352-7593-4e54-b5a6-d349134653e0
   WebsiteCloudfront:
-    Type: AWS::CloudFront::Distribution
+    Type: 'AWS::CloudFront::Distribution'
     DependsOn:
-    - WebsiteBucket
+      - WebsiteBucket
     Properties:
       DistributionConfig:
         Comment: Cloudfront Distribution pointing to S3 bucket
         Origins:
-        - DomainName: !Select [2, !Split ["/", !GetAtt WebsiteBucket.WebsiteURL]]
-          Id: S3Origin
-          CustomOriginConfig:
-            HTTPPort: '80'
-            HTTPSPort: '443'
-            OriginProtocolPolicy: http-only
+          - DomainName: !Select 
+              - 2
+              - !Split 
+                - /
+                - !GetAtt 
+                  - WebsiteBucket
+                  - WebsiteURL
+            Id: S3Origin
+            CustomOriginConfig:
+              HTTPPort: '80'
+              HTTPSPort: '443'
+              OriginProtocolPolicy: http-only
         Enabled: true
-        HttpVersion: 'http2'
+        HttpVersion: http2
         DefaultRootObject: index.html
         DefaultCacheBehavior:
           AllowedMethods:
-          - GET
-          - HEAD
+            - GET
+            - HEAD
           Compress: true
           TargetOriginId: S3Origin
           ForwardedValues:
@@ -57,128 +75,131 @@ Resources:
               Forward: none
           ViewerProtocolPolicy: redirect-to-https
         PriceClass: PriceClass_All
-
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 495ebc0e-d71c-4311-b213-24866767d599
   SecretsTable:
-    Type: AWS::DynamoDB::Table
+    Type: 'AWS::DynamoDB::Table'
     Properties:
       TableName: ADFSSecretData
       AttributeDefinitions:
-        -
-          AttributeName: email
+        - AttributeName: email
           AttributeType: S
       KeySchema:
-        -
-          AttributeName: email
+        - AttributeName: email
           KeyType: HASH
       ProvisionedThroughput:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
-
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 261f4f50-9b96-4075-8837-86f459c5e1e7
   RequestSecretDataExecutionRole:
-    Type: AWS::IAM::Role
+    Type: 'AWS::IAM::Role'
     Properties:
       RoleName: SecretDataLambda
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-          -
-            Effect: Allow
+          - Effect: Allow
             Principal:
               Service:
                 - lambda.amazonaws.com
             Action:
-              - "sts:AssumeRole"
+              - 'sts:AssumeRole'
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - 'arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
       Policies:
-        -
-          PolicyName: SecretDataPolicy
+        - PolicyName: SecretDataPolicy
           PolicyDocument:
             Version: 2012-10-17
             Statement:
-              -
-                Effect: Allow
+              - Effect: Allow
                 Action:
-                  - dynamodb:Scan
-                Resource: !GetAtt SecretsTable.Arn
-
+                  - 'dynamodb:Scan'
+                Resource: !GetAtt 
+                  - SecretsTable
+                  - Arn
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 19853e38-ede8-48cd-892f-b30be46a1ad2
   RequestSecretDataFunction:
-     Type: AWS::Lambda::Function
-     Properties:
-       FunctionName: ListSecretData
-       Runtime: nodejs6.10
-       Role: !GetAtt RequestSecretDataExecutionRole.Arn
-       Timeout: 5
-       MemorySize: 128
-       Handler: index.handler
-       Code:
-         ZipFile: >
-            const AWS = require('aws-sdk');
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: ListSecretData
+      Runtime: nodejs8.10
+      Role: !GetAtt 
+        - RequestSecretDataExecutionRole
+        - Arn
+      Timeout: 5
+      MemorySize: 128
+      Handler: index.handler
+      Code:
+        ZipFile: |
+          const AWS = require('aws-sdk');
+          const ddb = new AWS.DynamoDB.DocumentClient();
+          exports.handler = (event, context, callback) => {
+              if (!event.requestContext.authorizer) {
+                errorResponse('Authorization not configured', context.awsRequestId, callback);
+                return;
+              }
 
-            const ddb = new AWS.DynamoDB.DocumentClient();
+              console.log('Received event: ', event);
 
-            exports.handler = (event, context, callback) => {
-                if (!event.requestContext.authorizer) {
-                  errorResponse('Authorization not configured', context.awsRequestId, callback);
-                  return;
-                }
+              listSecrets(event.requestContext.authorizer.claims.email).then((data) => {
+                  // You can use the callback function to provide a return value from your Node.js
+                  // Lambda functions. The first parameter is used for failed invocations. The
+                  // second parameter specifies the result data of the invocation.
 
-                console.log('Received event: ', event);
+                  // Because this Lambda function is called by an API Gateway proxy integration
+                  // the result object must use the following structure.
+                  callback(null, {
+                      statusCode: 200,
+                      body: JSON.stringify(data.Items),
+                      headers: {
+                          'Access-Control-Allow-Origin': '*',
+                      },
+                  });
+              }).catch((err) => {
+                  console.error(err);
 
-                listSecrets(event.requestContext.authorizer.claims.email).then((data) => {
-                    // You can use the callback function to provide a return value from your Node.js
-                    // Lambda functions. The first parameter is used for failed invocations. The
-                    // second parameter specifies the result data of the invocation.
-
-                    // Because this Lambda function is called by an API Gateway proxy integration
-                    // the result object must use the following structure.
-                    callback(null, {
-                        statusCode: 200,
-                        body: JSON.stringify(data.Items),
-                        headers: {
-                            'Access-Control-Allow-Origin': '*',
-                        },
-                    });
-                }).catch((err) => {
-                    console.error(err);
-
-                    // If there is an error during processing, catch it and return
-                    // from the Lambda function successfully. Specify a 500 HTTP status
-                    // code and provide an error message in the body. This will provide a
-                    // more meaningful error response to the end client.
-                    errorResponse(err.message, context.awsRequestId, callback)
-                });
-            };
-
-            function listSecrets(username) {
-                return ddb.scan({
-                    ExpressionAttributeValues: {
-                        ":u": username
-                    },
-                    FilterExpression: 'email = :u',
-                    TableName: 'ADFSSecretData',
-                }).promise();
-            }
-
-            function errorResponse(errorMessage, awsRequestId, callback) {
-              callback(null, {
-                statusCode: 500,
-                body: JSON.stringify({
-                  Error: errorMessage,
-                  Reference: awsRequestId,
-                }),
-                headers: {
-                  'Access-Control-Allow-Origin': '*',
-                },
+                  // If there is an error during processing, catch it and return
+                  // from the Lambda function successfully. Specify a 500 HTTP status
+                  // code and provide an error message in the body. This will provide a
+                  // more meaningful error response to the end client.
+                  errorResponse(err.message, context.awsRequestId, callback)
               });
-            }
-
+          };
+          function listSecrets(username) {
+              return ddb.scan({
+                  ExpressionAttributeValues: {
+                      ":u": username
+                  },
+                  FilterExpression: 'email = :u',
+                  TableName: 'ADFSSecretData',
+              }).promise();
+          }
+          function errorResponse(errorMessage, awsRequestId, callback) {
+            callback(null, {
+              statusCode: 500,
+              body: JSON.stringify({
+                Error: errorMessage,
+                Reference: awsRequestId,
+              }),
+              headers: {
+                'Access-Control-Allow-Origin': '*',
+              },
+            });
+          }
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 1176efb0-60a8-4ffc-b560-a926134c8326
   DataManagerApi:
-    Type: AWS::ApiGateway::RestApi
+    Type: 'AWS::ApiGateway::RestApi'
     Properties:
       Name: DataManager
       Body:
-        swagger: 2.0
+        swagger: 2
         info:
           version: 1.0.0
           title: DataManager
@@ -191,95 +212,194 @@ Resources:
               produces:
                 - application/json
               responses:
-                "200":
-                  description: "200 response"
+                '200':
+                  description: 200 response
                   headers:
                     Access-Control-Allow-Origin:
-                      type: "string"
+                      type: string
               x-amazon-apigateway-integration:
                 responses:
                   default:
                     statusCode: 200
                     responseParameters:
-                      method.response.header.Access-Control-Allow-Origin: "'*'"
-                uri:
-                  Fn::Join:
-                    - ""
-                    - - "arn:aws:apigateway:"
-                      - !Ref AWS::Region
-                      - ":lambda:path/2015-03-31/functions/"
-                      - !GetAtt RequestSecretDataFunction.Arn
-                      - "/invocations"
-                passthroughBehavior: "when_no_match"
-                httpMethod: "POST"
-                contentHandling: "CONVERT_TO_TEXT"
-                type: "aws_proxy"
+                      method.response.header.Access-Control-Allow-Origin: '''*'''
+                uri: !Join 
+                  - ''
+                  - - 'arn:aws:apigateway:'
+                    - !Ref 'AWS::Region'
+                    - ':lambda:path/2015-03-31/functions/'
+                    - !GetAtt 
+                      - RequestSecretDataFunction
+                      - Arn
+                    - /invocations
+                passthroughBehavior: when_no_match
+                httpMethod: POST
+                contentHandling: CONVERT_TO_TEXT
+                type: aws_proxy
             options:
               responses:
-                "200":
-                  description: "200 response"
+                '200':
+                  description: 200 response
                   schema:
-                    $ref: "#/definitions/Empty"
+                    $ref: '#/definitions/Empty'
                   headers:
                     Access-Control-Allow-Origin:
-                      type: "string"
+                      type: string
                     Access-Control-Allow-Methods:
-                      type: "string"
+                      type: string
                     Access-Control-Allow-Headers:
-                      type: "string"
+                      type: string
               x-amazon-apigateway-integration:
                 responses:
                   default:
-                    statusCode: "200"
+                    statusCode: '200'
                     responseParameters:
-                      method.response.header.Access-Control-Allow-Methods: "'GET,OPTIONS,POST'"
-                      method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key'"
-                      method.response.header.Access-Control-Allow-Origin: "'*'"
+                      method.response.header.Access-Control-Allow-Methods: '''GET,OPTIONS,POST'''
+                      method.response.header.Access-Control-Allow-Headers: '''Content-Type,X-Amz-Date,Authorization,X-Api-Key'''
+                      method.response.header.Access-Control-Allow-Origin: '''*'''
                 requestTemplates:
-                  application/json: "{\"statusCode\": 200}"
-                passthroughBehavior: "when_no_match"
-                type: "mock"
-
+                  application/json: '{"statusCode": 200}'
+                passthroughBehavior: when_no_match
+                type: mock
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 2ff944aa-647c-416f-a7ba-b332505f37ed
   DataManagerApiDeployment:
-    Type: AWS::ApiGateway::Deployment
+    Type: 'AWS::ApiGateway::Deployment'
     Properties:
       Description: Prod deployment for Data Manager API
       RestApiId: !Ref DataManagerApi
       StageName: prod
-
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 045e0cae-8ad6-4889-a780-b690aac1c3df
   DataManagerFunctionPermissions:
-    Type: AWS::Lambda::Permission
+    Type: 'AWS::Lambda::Permission'
     Properties:
-      Action: lambda:InvokeFunction
+      Action: 'lambda:InvokeFunction'
       FunctionName: !Ref RequestSecretDataFunction
       Principal: apigateway.amazonaws.com
-      SourceArn:
-        Fn::Join:
-          - ""
-          - - "arn:aws:execute-api:"
-            - !Ref AWS::Region
-            - ":"
-            - !Ref AWS::AccountId
-            - ":"
-            - !Ref DataManagerApi
-            - "/*"
-
+      SourceArn: !Join 
+        - ''
+        - - 'arn:aws:execute-api:'
+          - !Ref 'AWS::Region'
+          - ':'
+          - !Ref 'AWS::AccountId'
+          - ':'
+          - !Ref DataManagerApi
+          - /*
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: 97b2d974-6785-42ce-80f4-5b786c666021
 Outputs:
   BucketName:
-    Value: !Ref 'WebsiteBucket'
+    Value: !Ref WebsiteBucket
     Description: Name of S3 bucket to hold website content
   CloudfrontEndpoint:
-    Value: !GetAtt [WebsiteCloudfront, DomainName]
+    Value: !GetAtt 
+      - WebsiteCloudfront
+      - DomainName
     Description: Endpoint for Cloudfront distribution
   DataManagerApiInvokeUrl:
     Description: URL for the deployed Data Manager API
-    Value:
-      Fn::Join:
-        - ""
-        - - "https://"
-          - !Ref DataManagerApi
-          - ".execute-api."
-          - !Ref AWS::Region
-          - ".amazonaws.com/prod"
+    Value: !Join 
+      - ''
+      - - 'https://'
+        - !Ref DataManagerApi
+        - .execute-api.
+        - !Ref 'AWS::Region'
+        - .amazonaws.com/prod
     Export:
       Name: DataManagerApiUrl
+Metadata:
+  'AWS::CloudFormation::Designer':
+    261f4f50-9b96-4075-8837-86f459c5e1e7:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 360
+        'y': 90
+      z: 1
+      embeds: []
+    19853e38-ede8-48cd-892f-b30be46a1ad2:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 360
+        'y': 210
+      z: 1
+      embeds: []
+    1176efb0-60a8-4ffc-b560-a926134c8326:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 360
+        'y': 330
+      z: 1
+      embeds: []
+    2ff944aa-647c-416f-a7ba-b332505f37ed:
+      size:
+        width: 240
+        height: 240
+      position:
+        x: 60
+        'y': 90
+      z: 1
+      embeds:
+        - 045e0cae-8ad6-4889-a780-b690aac1c3df
+    97b2d974-6785-42ce-80f4-5b786c666021:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 60
+        'y': 390
+      z: 1
+      embeds: []
+      isassociatedwith:
+        - 1176efb0-60a8-4ffc-b560-a926134c8326
+    045e0cae-8ad6-4889-a780-b690aac1c3df:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 90
+        'y': 150
+      z: 2
+      parent: 2ff944aa-647c-416f-a7ba-b332505f37ed
+      embeds: []
+      iscontainedinside:
+        - 2ff944aa-647c-416f-a7ba-b332505f37ed
+        - 2ff944aa-647c-416f-a7ba-b332505f37ed
+    4795c4e7-f621-41f2-84c4-c19733a90081:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 180
+        'y': 390
+      z: 1
+      embeds: []
+    495ebc0e-d71c-4311-b213-24866767d599:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 480
+        'y': 90
+      z: 1
+      embeds: []
+    9e824352-7593-4e54-b5a6-d349134653e0:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 480
+        'y': 210
+      z: 1
+      embeds: []
+      isassociatedwith:
+        - 4795c4e7-f621-41f2-84c4-c19733a90081
